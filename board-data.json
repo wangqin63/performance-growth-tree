@@ -1,0 +1,26 @@
+{
+  "reportDate": "2026-07-06",
+  "updatedAt": "2026-07-07T20:09:38+08:00",
+  "regions": [
+    {
+      "name": "南方大区",
+      "target": 120000,
+      "achieved": 607
+    },
+    {
+      "name": "果次方",
+      "target": 129600,
+      "achieved": 13680
+    },
+    {
+      "name": "华北大区",
+      "target": 120000,
+      "achieved": 2490
+    },
+    {
+      "name": "东北大区",
+      "target": 85000,
+      "achieved": 7200
+    }
+  ]
+}
