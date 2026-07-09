@@ -395,8 +395,8 @@
     .tree-hall {
       position: relative;
       margin-top: 0;
-      padding: 20px 22px 18px;
-      border-radius: 24px;
+      padding: 14px 16px 14px;
+      border-radius: 22px;
       border: 1px solid rgba(140, 118, 63, 0.26);
       background:
         radial-gradient(circle at 16% 18%, rgba(250, 204, 21, 0.12), transparent 22%),
@@ -419,32 +419,36 @@
 
     .tree-hall-title {
       position: relative;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 900;
       color: #fff2c6;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
     }
 
     .tree-hall-list {
       position: relative;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 8px;
     }
 
     .tree-hall-chip {
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 14px 16px;
-      border-radius: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      width: fit-content;
+      max-width: 100%;
+      padding: 8px 14px;
+      border-radius: 999px;
       background: rgba(52, 39, 20, 0.92);
       border: 1px solid rgba(221, 182, 92, 0.24);
       color: #fff3d0;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 800;
-      line-height: 1.3;
+      line-height: 1.2;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     }
 
@@ -457,61 +461,70 @@
     }
 
     .tree-hall-chip-head {
-      display: flex;
+      display: inline-flex;
+      flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      gap: 6px 8px;
+      min-width: 0;
     }
 
     .tree-hall-chip-name {
-      font-size: 16px;
+      font-size: 13px;
       font-weight: 900;
       color: #fff2c6;
       letter-spacing: 0.04em;
     }
 
     .tree-hall-chip-kicker {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       color: rgba(255, 237, 185, 0.9);
-      padding: 4px 8px;
+      padding: 3px 7px;
       border-radius: 999px;
       background: rgba(255, 214, 102, 0.12);
       border: 1px solid rgba(255, 214, 102, 0.16);
     }
 
-    .tree-hall-metrics {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
+    .tree-hall-metrics,
     .tree-hall-metrics.current {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 0;
+      min-width: 0;
     }
 
     .tree-hall-metric {
-      display: flex;
-      flex-direction: column;
+      display: inline-flex;
+      align-items: baseline;
       gap: 4px;
       min-width: 0;
-      padding: 8px 10px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0 10px;
+      white-space: nowrap;
+    }
+
+    .tree-hall-metric + .tree-hall-metric {
+      border-left: 1px solid rgba(255, 238, 194, 0.16);
     }
 
     .tree-hall-metric-label {
       color: rgba(243, 232, 202, 0.72);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.04em;
     }
 
     .tree-hall-metric-value {
       color: #fff4d7;
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 900;
+      line-height: 1;
+    }
+
+    .tree-hall-metric-unit {
+      color: rgba(243, 232, 202, 0.72);
+      font-size: 10px;
+      font-weight: 700;
       line-height: 1;
     }
 
@@ -1756,9 +1769,23 @@
         grid-template-columns: 1fr;
       }
 
-      .tree-hall-list,
+      .tree-hall-list {
+        align-items: stretch;
+      }
+
+      .tree-hall-chip {
+        width: 100%;
+        border-radius: 16px;
+        padding: 10px 12px;
+      }
+
+      .tree-hall-metrics,
       .tree-hall-metrics.current {
-        grid-template-columns: 1fr;
+        gap: 6px 0;
+      }
+
+      .tree-hall-metric {
+        padding: 0 8px;
       }
 
       .tree-grid {
@@ -2070,13 +2097,31 @@
       const weekdayMap = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
       const accents = ["#4ade80", "#facc15", "#38bdf8", "#fb7185"];
       const defaultState = {
-        reportDate: "2026-07-06",
-        updatedAt: "2026-07-07T20:09:38+08:00",
+        reportDate: "2026-07-09",
+        updatedAt: "2026-07-09T09:00:00+08:00",
         regions: [
           { name: "南方大区", target: 120000, achieved: 607, accent: accents[0] },
-          { name: "果次方", target: 129600, achieved: 3980, accent: accents[1] },
+          { name: "果次方", target: 129600, achieved: 13680, accent: accents[1] },
           { name: "华北大区", target: 120000, achieved: 2490, accent: accents[2] },
           { name: "东北大区", target: 85000, achieved: 7200, accent: accents[3] }
+        ],
+        treeHallEntries: [
+          {
+            name: "果次方",
+            appearanceCount: 1,
+            durationMs: 3 * 86400000,
+            currentStreakMs: 3 * 86400000,
+            crownedAt: new Date(2026, 6, 7).getTime(),
+            current: true
+          },
+          {
+            name: "东北大区",
+            appearanceCount: 1,
+            durationMs: 6 * 86400000,
+            currentStreakMs: 0,
+            crownedAt: new Date(2026, 6, 1).getTime(),
+            current: false
+          }
         ]
       };
 
@@ -2668,20 +2713,23 @@
               const kicker = isCurrent ? `<span class="tree-hall-chip-kicker">实时树王</span>` : "";
               const metricsClass = isCurrent ? "tree-hall-metrics current" : "tree-hall-metrics";
               const commonMetrics = `
-                <div class="tree-hall-metric">
-                  <span class="tree-hall-metric-label">登榜次数</span>
+                <span class="tree-hall-metric">
+                  <span class="tree-hall-metric-label">登榜</span>
                   <span class="tree-hall-metric-value">${entry.appearanceCount || 0}</span>
-                </div>
-                <div class="tree-hall-metric">
-                  <span class="tree-hall-metric-label">累计镇守天数</span>
+                  <span class="tree-hall-metric-unit">次</span>
+                </span>
+                <span class="tree-hall-metric">
+                  <span class="tree-hall-metric-label">累计镇守</span>
                   <span class="tree-hall-metric-value">${formatDays(entry.durationMs)}</span>
-                </div>
+                  <span class="tree-hall-metric-unit">天</span>
+                </span>
               `;
               const streakMetric = isCurrent ? `
-                <div class="tree-hall-metric">
-                  <span class="tree-hall-metric-label">本轮镇守天数</span>
+                <span class="tree-hall-metric">
+                  <span class="tree-hall-metric-label">本轮镇守</span>
                   <span class="tree-hall-metric-value">${formatDays(entry.currentStreakMs || 0)}</span>
-                </div>
+                  <span class="tree-hall-metric-unit">天</span>
+                </span>
               ` : "";
               return `
                 <div class="tree-hall-chip${currentClass}">
