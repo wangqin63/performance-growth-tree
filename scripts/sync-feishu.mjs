@@ -1,103 +1,3 @@
-import fs from "node:fs/promises";
-
-const DAY_MS = 86400000;
-
-const APP_ID = process.env.FEISHU_APP_ID;
-const APP_SECRET = process.env.FEISHU_APP_SECRET;
-const APP_TOKEN = process.env.FEISHU_APP_TOKEN;
-const TABLE_ID = process.env.FEISHU_TABLE_ID;
-
-if (!APP_ID || !APP_SECRET || !APP_TOKEN || !TABLE_ID) {
-  throw new Error("Missing required Feishu secrets.");
-}
-
-const tenantAccessToken = await getTenantAccessToken();
-const records = await getRecords(tenantAccessToken);
-const previousBoardData = await loadPreviousBoardData();
-const boardData = buildBoardData(records, previousBoardData);
-
-await fs.writeFile(
-  new URL("../board-data.json", import.meta.url),
-  `${JSON.stringify(boardData, null, 2)}\n`,
-  "utf8"
-);
-
-async function getTenantAccessToken() {
-  const response = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    body: JSON.stringify({
-      app_id: APP_ID,
-      app_secret: APP_SECRET
-    })
-  });
-
-  const result = await response.json();
-  if (!response.ok || !result.tenant_access_token) {
-    throw new Error(`tenant_access_token_failed: ${JSON.stringify(result)}`);
-  }
-
-  return result.tenant_access_token;
-}
-
-async function getRecords(tenantAccessToken) {
-  const response = await fetch(
-    `https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${TABLE_ID}/records?page_size=100`,
-    {
-      headers: {
-        Authorization: `Bearer ${tenantAccessToken}`
-      }
-    }
-  );
-
-  const result = await response.json();
-  if (!response.ok || !Array.isArray(result?.data?.items)) {
-    throw new Error(`bitable_records_failed: ${JSON.stringify(result)}`);
-  }
-
-  return result.data.items;
-}
-
-async function loadPreviousBoardData() {
-  try {
-    const text = await fs.readFile(new URL("../board-data.json", import.meta.url), "utf8");
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-function buildBoardData(items, previousBoardData) {
-  const regionOrder = ["鍗楁柟澶у尯", "鏋滄鏂?", "鍗庡寳澶у尯", "涓滃寳澶у尯"];
-  const now = new Date();
-  const rows = items
-    .map((item) => item.fields || {})
-    .filter((fields) => fields.name)
-    .map((fields) => ({
-      name: String(fields.name).trim(),
-      target: Number(fields.target) || 0,
-      achieved: Number(fields.achieved) || 0
-    }))
-    .sort((left, right) => regionOrder.indexOf(left.name) - regionOrder.indexOf(right.name));
-
-  const regions = rows.map(({ name, target, achieved }) => ({
-    name,
-    target,
-    achieved
-  }));
-
-  const currentLeader = getLeaderName(rows);
-  const treeHallState = buildTreeHallState(rows, currentLeader, previousBoardData, now);
-
-  return {
-    reportDate: formatShanghaiDate(now),
-    updatedAt: formatShanghaiTimestamp(now),
-    regions,
-    treeHallEntries: treeHallState.entries,
-    treeHallMeta: {
-      currentLeader,
       lastSyncAt: now.toISOString()
     }
   };
@@ -198,13 +98,13 @@ function buildTreeHallState(rows, currentLeader, previousBoardData, now) {
 }
 
 function applyInitialPreset(statsMap) {
-  const fruit = statsMap.get("鏋滄鏂?");
+  const fruit = statsMap.get("果次方");
   if (fruit) {
     fruit.appearanceCount = Math.max(fruit.appearanceCount, 1);
     fruit.crownedAt = Math.min(fruit.crownedAt, new Date(2026, 6, 7).getTime());
   } else {
-    statsMap.set("鏋滄鏂?", {
-      name: "鏋滄鏂?",
+    statsMap.set("果次方", {
+      name: "果次方",
       appearanceCount: 1,
       durationMs: 0,
       currentStreakMs: 0,
@@ -213,7 +113,7 @@ function applyInitialPreset(statsMap) {
     });
   }
 
-  const northeast = statsMap.get("涓滃寳澶у尯");
+  const northeast = statsMap.get("东北大区");
   if (northeast) {
     northeast.appearanceCount = Math.max(northeast.appearanceCount, 1);
     northeast.durationMs = Math.max(northeast.durationMs, 6 * DAY_MS);
@@ -221,8 +121,8 @@ function applyInitialPreset(statsMap) {
     return;
   }
 
-  statsMap.set("涓滃寳澶у尯", {
-    name: "涓滃寳澶у尯",
+  statsMap.set("东北大区", {
+    name: "东北大区",
     appearanceCount: 1,
     durationMs: 6 * DAY_MS,
     currentStreakMs: 0,
