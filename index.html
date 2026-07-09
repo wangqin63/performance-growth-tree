@@ -427,32 +427,25 @@
 
     .tree-hall-list {
       position: relative;
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 12px;
-      align-items: center;
       margin-top: 12px;
     }
 
     .tree-hall-chip {
-      display: inline-flex;
-      align-items: center;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
-      padding: 10px 14px;
-      border-radius: 999px;
+      padding: 14px 16px;
+      border-radius: 18px;
       background: rgba(52, 39, 20, 0.92);
       border: 1px solid rgba(221, 182, 92, 0.24);
       color: #fff3d0;
       font-size: 13px;
       font-weight: 800;
-      line-height: 1;
+      line-height: 1.3;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .tree-hall-chip small {
-      color: rgba(243, 232, 202, 0.78);
-      font-size: 12px;
-      font-weight: 700;
     }
 
     .tree-hall-chip.current {
@@ -461,6 +454,65 @@
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.05),
         0 0 0 1px rgba(250, 204, 21, 0.08);
+    }
+
+    .tree-hall-chip-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .tree-hall-chip-name {
+      font-size: 16px;
+      font-weight: 900;
+      color: #fff2c6;
+      letter-spacing: 0.04em;
+    }
+
+    .tree-hall-chip-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      color: rgba(255, 237, 185, 0.9);
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 214, 102, 0.12);
+      border: 1px solid rgba(255, 214, 102, 0.16);
+    }
+
+    .tree-hall-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .tree-hall-metrics.current {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tree-hall-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tree-hall-metric-label {
+      color: rgba(243, 232, 202, 0.72);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .tree-hall-metric-value {
+      color: #fff4d7;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
     }
 
     .tree-hall-empty {
@@ -1704,6 +1756,11 @@
         grid-template-columns: 1fr;
       }
 
+      .tree-hall-list,
+      .tree-hall-metrics.current {
+        grid-template-columns: 1fr;
+      }
+
       .tree-grid {
         gap: 14px;
       }
@@ -2294,6 +2351,26 @@
         return applyTreeHallPreset(createEmptyTreeHallState(monthKey, now));
       }
 
+      function normalizeRemoteTreeHallEntries(entries, now) {
+        if (!Array.isArray(entries)) {
+          return {};
+        }
+        return Object.fromEntries(
+          entries
+            .filter((entry) => entry && typeof entry === "object" && typeof entry.name === "string" && entry.name)
+            .map((entry, index) => [
+              entry.name,
+              {
+                durationMs: Number.isFinite(Number(entry.durationMs)) ? Math.max(0, Number(entry.durationMs)) : 0,
+                crownedAt: Number.isFinite(Number(entry.crownedAt)) ? Number(entry.crownedAt) : now + index,
+                appearanceCount: Number.isFinite(Number(entry.appearanceCount)) ? Math.max(0, Number(entry.appearanceCount)) : 0,
+                currentStreakMs: Number.isFinite(Number(entry.currentStreakMs)) ? Math.max(0, Number(entry.currentStreakMs)) : 0,
+                current: Boolean(entry.current)
+              }
+            ])
+        );
+      }
+
       function normalizeTreeHallEntries(entries, now) {
         if (!entries || typeof entries !== "object") {
           return {};
@@ -2316,7 +2393,10 @@
         if (!treeHallState.entries[regionName]) {
           treeHallState.entries[regionName] = {
             durationMs: 0,
-            crownedAt: now
+            crownedAt: now,
+            appearanceCount: 0,
+            currentStreakMs: 0,
+            current: false
           };
         }
       }
@@ -2344,7 +2424,12 @@
         const monthKey = getMonthKey(sourceState.reportDate);
         const leaderName = getLeaderNameFromState(sourceState.regions);
         if (PUBLIC_VIEW) {
+          const remoteEntries = normalizeRemoteTreeHallEntries(sourceState.treeHallEntries, now);
           treeHallState = applyTreeHallPreset(createEmptyTreeHallState(monthKey, now));
+          treeHallState.entries = {
+            ...treeHallState.entries,
+            ...remoteEntries
+          };
           ensureTreeHallEntry(leaderName, now);
           treeHallState.currentLeader = leaderName;
           treeHallState.lastTimestamp = now;
@@ -2394,7 +2479,8 @@
         return {
           reportDate: typeof input.reportDate === "string" && input.reportDate ? input.reportDate : fallback.reportDate,
           updatedAt: typeof input.updatedAt === "string" && input.updatedAt ? input.updatedAt : fallback.updatedAt,
-          regions
+          regions,
+          treeHallEntries: Array.isArray(input.treeHallEntries) ? input.treeHallEntries : []
         };
       }
 
@@ -2563,16 +2649,57 @@
 
       function renderTreeHallModule(currentLeaderName) {
         const entries = Object.entries(treeHallState.entries)
-          .sort((left, right) => left[1].crownedAt - right[1].crownedAt);
+          .sort((left, right) => {
+            if (left[1].current !== right[1].current) {
+              return left[1].current ? -1 : 1;
+            }
+            if ((right[1].appearanceCount || 0) !== (left[1].appearanceCount || 0)) {
+              return (right[1].appearanceCount || 0) - (left[1].appearanceCount || 0);
+            }
+            if (right[1].durationMs !== left[1].durationMs) {
+              return right[1].durationMs - left[1].durationMs;
+            }
+            return left[1].crownedAt - right[1].crownedAt;
+          });
         const chips = entries.length
           ? entries.map(([name, entry]) => {
-              const currentClass = name === currentLeaderName ? " current" : "";
-              return `<div class="tree-hall-chip${currentClass}"><span>${name}</span><small>累计镇守${formatDays(entry.durationMs)}天</small></div>`;
+              const isCurrent = entry.current || name === currentLeaderName;
+              const currentClass = isCurrent ? " current" : "";
+              const kicker = isCurrent ? `<span class="tree-hall-chip-kicker">实时树王</span>` : "";
+              const metricsClass = isCurrent ? "tree-hall-metrics current" : "tree-hall-metrics";
+              const commonMetrics = `
+                <div class="tree-hall-metric">
+                  <span class="tree-hall-metric-label">登榜次数</span>
+                  <span class="tree-hall-metric-value">${entry.appearanceCount || 0}</span>
+                </div>
+                <div class="tree-hall-metric">
+                  <span class="tree-hall-metric-label">累计镇守天数</span>
+                  <span class="tree-hall-metric-value">${formatDays(entry.durationMs)}</span>
+                </div>
+              `;
+              const streakMetric = isCurrent ? `
+                <div class="tree-hall-metric">
+                  <span class="tree-hall-metric-label">本轮镇守天数</span>
+                  <span class="tree-hall-metric-value">${formatDays(entry.currentStreakMs || 0)}</span>
+                </div>
+              ` : "";
+              return `
+                <div class="tree-hall-chip${currentClass}">
+                  <div class="tree-hall-chip-head">
+                    <span class="tree-hall-chip-name">${name}</span>
+                    ${kicker}
+                  </div>
+                  <div class="${metricsClass}">
+                    ${commonMetrics}
+                    ${streakMetric}
+                  </div>
+                </div>
+              `;
             }).join("")
           : `<div class="tree-hall-empty">本月实时树王：暂无，首位登顶大区出现后将自动永久入碑。</div>`;
 
         treeHall.innerHTML = `
-          <div class="tree-hall-title">📜古树功勋碑｜本月上榜区域</div>
+          <div class="tree-hall-title">📜古树功勋榜｜本月上榜区域</div>
           <div class="tree-hall-list">${chips}</div>
         `;
       }
