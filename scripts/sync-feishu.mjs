@@ -1,3 +1,109 @@
+import fs from "node:fs/promises";
+
+const DAY_MS = 86400000;
+const REGION_ORDER = ["南方大区", "果次方", "华北大区", "东北大区"];
+const VALID_REGION_SET = new Set(REGION_ORDER);
+const JULY_TREE_KING_BOOTSTRAP = {
+  northeastStart: "2026-07-01",
+  fruitStart: "2026-07-07"
+};
+
+const APP_ID = process.env.FEISHU_APP_ID;
+const APP_SECRET = process.env.FEISHU_APP_SECRET;
+const APP_TOKEN = process.env.FEISHU_APP_TOKEN;
+const TABLE_ID = process.env.FEISHU_TABLE_ID;
+
+if (!APP_ID || !APP_SECRET || !APP_TOKEN || !TABLE_ID) {
+  throw new Error("Missing required Feishu secrets.");
+}
+
+const tenantAccessToken = await getTenantAccessToken();
+const records = await getRecords(tenantAccessToken);
+const previousBoardData = await loadPreviousBoardData();
+const boardData = buildBoardData(records, previousBoardData);
+
+await fs.writeFile(
+  new URL("../board-data.json", import.meta.url),
+  `${JSON.stringify(boardData, null, 2)}\n`,
+  "utf8"
+);
+
+async function getTenantAccessToken() {
+  const response = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    body: JSON.stringify({
+      app_id: APP_ID,
+      app_secret: APP_SECRET
+    })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.tenant_access_token) {
+    throw new Error(`tenant_access_token_failed: ${JSON.stringify(result)}`);
+  }
+
+  return result.tenant_access_token;
+}
+
+async function getRecords(tenantAccessToken) {
+  const response = await fetch(
+    `https://open.feishu.cn/open-apis/bitable/v1/apps/${APP_TOKEN}/tables/${TABLE_ID}/records?page_size=100`,
+    {
+      headers: {
+        Authorization: `Bearer ${tenantAccessToken}`
+      }
+    }
+  );
+
+  const result = await response.json();
+  if (!response.ok || !Array.isArray(result?.data?.items)) {
+    throw new Error(`bitable_records_failed: ${JSON.stringify(result)}`);
+  }
+
+  return result.data.items;
+}
+
+async function loadPreviousBoardData() {
+  try {
+    const text = await fs.readFile(new URL("../board-data.json", import.meta.url), "utf8");
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function buildBoardData(items, previousBoardData) {
+  const now = new Date();
+  const rows = items
+    .map((item) => item.fields || {})
+    .filter((fields) => fields.name)
+    .map((fields) => ({
+      name: String(fields.name).trim(),
+      target: Number(fields.target) || 0,
+      achieved: Number(fields.achieved) || 0
+    }))
+    .filter((row) => VALID_REGION_SET.has(row.name))
+    .sort((left, right) => REGION_ORDER.indexOf(left.name) - REGION_ORDER.indexOf(right.name));
+
+  const regions = rows.map(({ name, target, achieved }) => ({
+    name,
+    target,
+    achieved
+  }));
+
+  const currentLeader = getLeaderName(rows);
+  const treeHallState = buildTreeHallState(rows, currentLeader, previousBoardData, now);
+
+  return {
+    reportDate: formatShanghaiDate(now),
+    updatedAt: formatShanghaiTimestamp(now),
+    regions,
+    treeHallEntries: treeHallState.entries,
+    treeHallMeta: {
+      currentLeader,
       lastSyncAt: now.toISOString()
     }
   };
@@ -7,9 +113,13 @@ function buildTreeHallState(rows, currentLeader, previousBoardData, now) {
   const statsMap = new Map();
   const previousEntries = Array.isArray(previousBoardData?.treeHallEntries) ? previousBoardData.treeHallEntries : [];
   const previousMeta = previousBoardData?.treeHallMeta || {};
+  const previousLeader = typeof previousMeta.currentLeader === "string" && VALID_REGION_SET.has(previousMeta.currentLeader)
+    ? previousMeta.currentLeader
+    : "";
+  const previousSyncAt = previousMeta.lastSyncAt ? new Date(previousMeta.lastSyncAt) : null;
 
   previousEntries.forEach((entry, index) => {
-    if (!entry || typeof entry.name !== "string" || !entry.name) {
+    if (!entry || typeof entry.name !== "string" || !VALID_REGION_SET.has(entry.name)) {
       return;
     }
     statsMap.set(entry.name, {
@@ -24,6 +134,11 @@ function buildTreeHallState(rows, currentLeader, previousBoardData, now) {
 
   applyInitialPreset(statsMap);
 
+  if (!hasMeaningfulHistory(previousEntries, previousLeader)) {
+    bootstrapTreeHallState(statsMap, currentLeader, now);
+    return { entries: finalizeTreeHallEntries(statsMap) };
+  }
+
   rows.forEach((row, index) => {
     if (!statsMap.has(row.name)) {
       statsMap.set(row.name, {
@@ -36,9 +151,6 @@ function buildTreeHallState(rows, currentLeader, previousBoardData, now) {
       });
     }
   });
-
-  const previousLeader = typeof previousMeta.currentLeader === "string" ? previousMeta.currentLeader : "";
-  const previousSyncAt = previousMeta.lastSyncAt ? new Date(previousMeta.lastSyncAt) : null;
   const elapsedDays = previousSyncAt && !Number.isNaN(previousSyncAt.getTime())
     ? Math.max(0, diffShanghaiCalendarDays(previousSyncAt, now))
     : 0;
@@ -79,22 +191,7 @@ function buildTreeHallState(rows, currentLeader, previousBoardData, now) {
     currentLeaderStats.current = true;
   }
 
-  const entries = [...statsMap.values()]
-    .filter((entry) => entry.appearanceCount > 0 || entry.durationMs > 0 || entry.current)
-    .sort((left, right) => {
-      if (left.current !== right.current) {
-        return left.current ? -1 : 1;
-      }
-      if (right.appearanceCount !== left.appearanceCount) {
-        return right.appearanceCount - left.appearanceCount;
-      }
-      if (right.durationMs !== left.durationMs) {
-        return right.durationMs - left.durationMs;
-      }
-      return left.crownedAt - right.crownedAt;
-    });
-
-  return { entries };
+  return { entries: finalizeTreeHallEntries(statsMap) };
 }
 
 function applyInitialPreset(statsMap) {
@@ -129,6 +226,82 @@ function applyInitialPreset(statsMap) {
     crownedAt: new Date(2026, 6, 1).getTime(),
     current: false
   });
+}
+
+function hasMeaningfulHistory(previousEntries, previousLeader) {
+  return previousEntries.some((entry) => entry && typeof entry.name === "string" && VALID_REGION_SET.has(entry.name))
+    || Boolean(previousLeader);
+}
+
+function bootstrapTreeHallState(statsMap, currentLeader, now) {
+  const today = formatShanghaiDate(now);
+  const northeast = statsMap.get("东北大区");
+  const fruit = statsMap.get("果次方");
+
+  if (northeast) {
+    northeast.appearanceCount = Math.max(northeast.appearanceCount, 1);
+    northeast.current = false;
+  }
+
+  if (fruit) {
+    fruit.appearanceCount = Math.max(fruit.appearanceCount, 1);
+    fruit.current = false;
+  }
+
+  if (currentLeader === "果次方" && today >= JULY_TREE_KING_BOOTSTRAP.fruitStart && fruit) {
+    const fruitDays = Math.max(1, diffShanghaiCalendarDays(
+      new Date(`${JULY_TREE_KING_BOOTSTRAP.fruitStart}T00:00:00+08:00`),
+      now
+    ) + 1);
+    fruit.durationMs = Math.max(fruit.durationMs, fruitDays * DAY_MS);
+    fruit.currentStreakMs = fruitDays * DAY_MS;
+    fruit.current = true;
+    return;
+  }
+
+  if (currentLeader === "东北大区" && today < JULY_TREE_KING_BOOTSTRAP.fruitStart && northeast) {
+    const northeastDays = Math.max(1, diffShanghaiCalendarDays(
+      new Date(`${JULY_TREE_KING_BOOTSTRAP.northeastStart}T00:00:00+08:00`),
+      now
+    ) + 1);
+    northeast.durationMs = Math.max(northeast.durationMs, northeastDays * DAY_MS);
+    northeast.currentStreakMs = northeastDays * DAY_MS;
+    northeast.current = true;
+  }
+}
+
+function finalizeTreeHallEntries(statsMap) {
+  return [...statsMap.values()]
+    .filter((entry) => VALID_REGION_SET.has(entry.name))
+    .filter((entry) => entry.appearanceCount > 0 || entry.durationMs > 0 || entry.current)
+    .sort((left, right) => {
+      if (left.current !== right.current) {
+        return left.current ? -1 : 1;
+      }
+      if (right.appearanceCount !== left.appearanceCount) {
+        return right.appearanceCount - left.appearanceCount;
+      }
+      if (right.durationMs !== left.durationMs) {
+        return right.durationMs - left.durationMs;
+      }
+      return left.crownedAt - right.crownedAt;
+    })
+    .map((entry) => {
+      const base = {
+        name: entry.name,
+        appearanceCount: Math.max(0, entry.appearanceCount || 0),
+        durationMs: Math.max(0, entry.durationMs || 0),
+        crownedAt: entry.crownedAt,
+        current: Boolean(entry.current)
+      };
+      if (base.current) {
+        return {
+          ...base,
+          currentStreakMs: Math.max(0, entry.currentStreakMs || 0)
+        };
+      }
+      return base;
+    });
 }
 
 function diffShanghaiCalendarDays(left, right) {
