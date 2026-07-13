@@ -1,36 +1,14 @@
 {
-  "reportDate": "2026-07-13",
-  "updatedAt": "2026-07-13T09:00:00+08:00",
-  "regions": [
-    {
-      "name": "南方大区",
-      "target": 120000,
-      "achieved": 607
-    },
-    {
-      "name": "果次方",
-      "target": 129600,
-      "achieved": 13680
-    },
-    {
-      "name": "华北大区",
-      "target": 120000,
-      "achieved": 2490
-    },
-    {
-      "name": "东北大区",
-      "target": 85000,
-      "achieved": 7200
-    }
-  ],
+  "reportDate": "2026-07-14",
+  "updatedAt": "2026-07-14T01:02:07+08:00",
+  "regions": [],
   "treeHallEntries": [
     {
       "name": "果次方",
       "appearanceCount": 1,
-      "durationMs": 604800000,
-      "currentStreakMs": 604800000,
+      "durationMs": 691200000,
       "crownedAt": 1751846400000,
-      "current": true
+      "current": false
     },
     {
       "name": "东北大区",
@@ -41,7 +19,7 @@
     }
   ],
   "treeHallMeta": {
-    "currentLeader": "果次方",
-    "lastSyncAt": "2026-07-13T09:00:00+08:00"
+    "currentLeader": "",
+    "lastSyncAt": "2026-07-13T17:02:07.310Z"
   }
 }
