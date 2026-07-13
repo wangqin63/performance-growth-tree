@@ -2096,9 +2096,11 @@
       const TREE_HALL_KEY = "july-tree-king-hall-v1";
       const weekdayMap = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
       const accents = ["#4ade80", "#facc15", "#38bdf8", "#fb7185"];
+      const validRegionNames = ["南方大区", "果次方", "华北大区", "东北大区"];
+      const validRegionSet = new Set(validRegionNames);
       const defaultState = {
-        reportDate: "2026-07-09",
-        updatedAt: "2026-07-09T09:00:00+08:00",
+        reportDate: "2026-07-13",
+        updatedAt: "2026-07-13T09:00:00+08:00",
         regions: [
           { name: "南方大区", target: 120000, achieved: 607, accent: accents[0] },
           { name: "果次方", target: 129600, achieved: 13680, accent: accents[1] },
@@ -2109,8 +2111,8 @@
           {
             name: "果次方",
             appearanceCount: 1,
-            durationMs: 3 * 86400000,
-            currentStreakMs: 3 * 86400000,
+            durationMs: 7 * 86400000,
+            currentStreakMs: 7 * 86400000,
             crownedAt: new Date(2026, 6, 7).getTime(),
             current: true
           },
@@ -2118,7 +2120,6 @@
             name: "东北大区",
             appearanceCount: 1,
             durationMs: 6 * 86400000,
-            currentStreakMs: 0,
             crownedAt: new Date(2026, 6, 1).getTime(),
             current: false
           }
@@ -2402,7 +2403,7 @@
         }
         return Object.fromEntries(
           entries
-            .filter((entry) => entry && typeof entry === "object" && typeof entry.name === "string" && entry.name)
+            .filter((entry) => entry && typeof entry === "object" && typeof entry.name === "string" && validRegionSet.has(entry.name))
             .map((entry, index) => [
               entry.name,
               {
@@ -2420,7 +2421,9 @@
         if (!entries || typeof entries !== "object") {
           return {};
         }
-        return Object.fromEntries(Object.entries(entries).map(([name, entry]) => {
+        return Object.fromEntries(Object.entries(entries)
+          .filter(([name]) => validRegionSet.has(name))
+          .map(([name, entry]) => {
           const normalized = entry && typeof entry === "object" ? entry : {};
           return [name, {
             durationMs: Number.isFinite(Number(normalized.durationMs)) ? Math.max(0, Number(normalized.durationMs)) : 0,
