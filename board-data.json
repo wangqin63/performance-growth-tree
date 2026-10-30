@@ -1,6 +1,6 @@
 {
-  "reportDate": "2026-10-30",
-  "updatedAt": "2026-10-30T23:48:49+08:00",
+  "reportDate": "2026-10-31",
+  "updatedAt": "2026-10-31T04:11:24+08:00",
   "regions": [],
   "treeHallEntries": [
     {
@@ -20,6 +20,6 @@
   ],
   "treeHallMeta": {
     "currentLeader": "",
-    "lastSyncAt": "2026-10-30T15:48:49.791Z"
+    "lastSyncAt": "2026-10-30T20:11:24.512Z"
   }
 }
